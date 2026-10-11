@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Studio - ระบบสังเคราะห์เสียงพูดหลายรูปแบบ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Kanit', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto space-y-8">
+        
+        <!-- Header -->
+        <header class="text-center space-y-2">
+            <div class="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-1.5 rounded-full text-indigo-400 text-sm font-medium mb-1">
+                <i class="fa-solid fa-waveform-lines"></i>
+                <span>Thai Text-to-Speech Multi-Voice Studio</span>
+            </div>
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+                ระบบสังเคราะห์เสียงพูด AI
+            </h1>
+            <p class="text-slate-400 text-sm sm:text-base max-w-lg mx-auto">
+                เลือกรูปแบบเสียงที่ต้องการ พิมพ์ข้อความภาษาไทย แล้วกดแปลงเป็นเสียงพูดได้ทันที
+            </p>
+        </header>
+
+        <!-- Main Form Card -->
+        <main class="bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700/60 shadow-2xl p-6 sm:p-8 space-y-6">
+            <form id="ttsForm" class="space-y-6">
+                
+                <!-- 1. Voice Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-200 mb-3 flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-users text-indigo-400"></i>
+                            <span>1. เลือกรูปแบบเสียง (Voice Selection)</span>
+                        </span>
+                        <span class="text-xs text-indigo-400 font-semibold bg-indigo-950/60 border border-indigo-500/30 px-2 py-0.5 rounded-full">มีทั้งหมด {{ voices|length }} รูปแบบ</span>
+                    </label>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for key, v in voices.items() %}
+                        <label class="voice-card relative flex flex-col p-3.5 rounded-xl border-2 {% if loop.first %}border-indigo-500 bg-indigo-950/30{% else %}border-slate-700 bg-slate-900/40{% endif %} cursor-pointer transition-all hover:bg-slate-700/40 select-none">
+                            <input type="radio" name="voice" value="{{ key }}" {% if loop.first %}checked{% endif %} class="hidden">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="w-9 h-9 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-base">
+                                    <i class="fa-solid {{ v.icon or 'fa-microphone' }}"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{{ v.badge or 'TTS' }}</span>
+                                    <span class="check-icon {% if not loop.first %}hidden{% endif %} text-indigo-400 text-base"><i class="fa-solid fa-circle-check"></i></span>
+                                </div>
+                            </div>
+                            <span class="font-semibold text-slate-100 text-sm">{{ v.name }}</span>
+                            <span class="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">{{ v.description }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- 2. Target Text Input -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-200 mb-2 flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-pen-nib text-indigo-400"></i>
+                            <span>2. ข้อความที่ต้องการให้พูด (Text)</span>
+                        </span>
+                        <span class="text-xs text-slate-400" id="charCount">0 ตัวอักษร</span>
+                    </label>
+                    <textarea id="targetText" name="target_text" rows="4" 
+                        placeholder="พิมพ์หรือวางข้อความภาษาไทยที่ต้องการสังเคราะห์ที่นี่ เช่น สวัสดีครับ ยินดีต้อนรับเข้าสู่ระบบสังเคราะห์เสียง AI ภาษาไทย..."
+                        class="w-full bg-slate-950/70 border border-slate-700 rounded-xl p-3.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-y"></textarea>
+                </div>
+
+                <!-- 3. Voice Customization (Speed, Pitch, Volume) -->
+                <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-700/40 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-indigo-400"></i>
+                            <span>3. ปรับแต่งโทนเสียงตามต้องการ (Voice Customization)</span>
+                        </span>
+                        <button type="button" id="resetSlidersBtn" class="text-xs text-slate-400 hover:text-indigo-400 flex items-center gap-1 transition-colors">
+                            <i class="fa-solid fa-rotate-left"></i> รีเซ็ตค่าเริ่มต้น
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Speed Control -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center text-xs text-slate-300">
+                                <span class="flex items-center gap-1 font-medium">
+                                    <i class="fa-solid fa-gauge-high text-indigo-400"></i> ความเร็ว (Speed)
+                                </span>
+                                <span id="speedVal" class="text-indigo-400 font-bold bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/30">1.0x</span>
+                            </div>
+                            <input type="range" id="speed" name="speed" min="0.5" max="1.5" step="0.1" value="1.0"
+                                class="w-full accent-indigo-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[11px] text-slate-500">
+                                <span>0.5x (ช้า)</span>
+                                <span>1.0x</span>
+                                <span>1.5x (เร็ว)</span>
+                            </div>
+                        </div>
+
+                        <!-- Pitch Control -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center text-xs text-slate-300">
+                                <span class="flex items-center gap-1 font-medium">
+                                    <i class="fa-solid fa-music text-purple-400"></i> คีย์เสียง / ทุ้ม-แหลม (Pitch)
+                                </span>
+                                <span id="pitchVal" class="text-purple-400 font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30">+0 Hz</span>
+                            </div>
+                            <input type="range" id="pitch" name="pitch" min="-50" max="50" step="5" value="0"
+                                class="w-full accent-purple-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[11px] text-slate-500">
+                                <span>-50Hz (ทุ้มต่ำ)</span>
+                                <span>0Hz (ปกติ)</span>
+                                <span>+50Hz (แหลมสูง)</span>
+                            </div>
+                        </div>
+
+                        <!-- Volume Control -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center text-xs text-slate-300">
+                                <span class="flex items-center gap-1 font-medium">
+                                    <i class="fa-solid fa-volume-high text-pink-400"></i> ระดับความดัง (Volume)
+                                </span>
+                                <span id="volumeVal" class="text-pink-400 font-bold bg-pink-950/60 px-2 py-0.5 rounded border border-pink-500/30">+0%</span>
+                            </div>
+                            <input type="range" id="volume" name="volume" min="-50" max="50" step="5" value="0"
+                                class="w-full accent-pink-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[11px] text-slate-500">
+                                <span>-50% (เบาลง)</span>
+                                <span>0% (ปกติ)</span>
+                                <span>+50% (ดังขึ้น)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn"
+                    class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>เริ่มสร้างเสียงพูด</span>
+                </button>
+            </form>
+
+            <!-- Loading Spinner -->
+            <div id="loadingBox" class="hidden py-6 bg-slate-900/50 rounded-xl border border-indigo-500/30 text-center space-y-3">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                <p class="text-sm text-indigo-300 font-medium">กำลังสังเคราะห์เสียงด้วย AI...</p>
+            </div>
+
+            <!-- Error Notification -->
+            <div id="errorBox" class="hidden p-4 bg-rose-950/60 border border-rose-500/50 rounded-xl flex items-start gap-3 text-rose-200">
+                <i class="fa-solid fa-circle-exclamation text-rose-400 mt-0.5 text-lg"></i>
+                <div class="text-sm">
+                    <h3 class="font-semibold text-rose-300">เกิดข้อผิดพลาด</h3>
+                    <p id="errorMessage" class="text-rose-200/90 mt-0.5"></p>
+                </div>
+            </div>
+
+            <!-- Result Section -->
+            <div id="resultBox" class="hidden bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/40 rounded-xl p-5 space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-indigo-500/20">
+                    <span class="text-emerald-400 text-sm font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i> สร้างเสียงสำเร็จ!
+                    </span>
+                    <a id="downloadLink" href="#" download="speech.mp3"
+                        class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs text-white rounded-lg font-medium flex items-center gap-1.5 transition-colors shadow">
+                        <i class="fa-solid fa-download"></i> ดาวน์โหลด MP3
+                    </a>
+                </div>
+
+                <!-- Voice Info Badge -->
+                <div class="flex items-center gap-2 text-xs text-slate-300">
+                    <span class="bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-md border border-indigo-500/30 font-medium" id="resVoiceName">
+                        เสียงผู้หญิง
+                    </span>
+                    <span class="text-slate-400">ประมวลผลเสร็จใน <span id="resProcessTime" class="text-slate-200 font-medium">0.5</span> วินาที</span>
+                </div>
+
+                <!-- Audio Player -->
+                <div>
+                    <audio id="outputAudioPlayer" controls class="w-full"></audio>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="text-center text-xs text-slate-500">
+            AI Voice Studio &bull; รองรับ 3 รูปแบบเสียง (ผู้หญิง, ผู้ชาย, เสียงสิริ)
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const form = document.getElementById('ttsForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingBox = document.getElementById('loadingBox');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultBox = document.getElementById('resultBox');
+
+        const targetText = document.getElementById('targetText');
+        const charCount = document.getElementById('charCount');
+        const speedSlider = document.getElementById('speed');
+        const speedVal = document.getElementById('speedVal');
+        const pitchSlider = document.getElementById('pitch');
+        const pitchVal = document.getElementById('pitchVal');
+        const volumeSlider = document.getElementById('volume');
+        const volumeVal = document.getElementById('volumeVal');
+        const resetSlidersBtn = document.getElementById('resetSlidersBtn');
+
+        const voiceCards = document.querySelectorAll('.voice-card');
+
+        // Character counter
+        targetText.addEventListener('input', () => {
+            charCount.innerText = `${targetText.value.length} ตัวอักษร`;
+        });
+
+        // Sliders
+        speedSlider.addEventListener('input', (e) => {
+            speedVal.innerText = `${e.target.value}x`;
+        });
+
+        pitchSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            pitchVal.innerText = `${val > 0 ? '+' : ''}${val} Hz`;
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            volumeVal.innerText = `${val > 0 ? '+' : ''}${val}%`;
+        });
+
+        resetSlidersBtn.addEventListener('click', () => {
+            speedSlider.value = 1.0;
+            speedVal.innerText = '1.0x';
+            pitchSlider.value = 0;
+            pitchVal.innerText = '+0 Hz';
+            volumeSlider.value = 0;
+            volumeVal.innerText = '+0%';
+        });
+
+        // Voice Card Click handling
+        voiceCards.forEach(card => {
+            card.addEventListener('click', () => {
+                voiceCards.forEach(c => {
+                    c.classList.remove('border-indigo-500', 'bg-indigo-950/30');
+                    c.classList.add('border-slate-700', 'bg-slate-900/40');
+                    const icon = c.querySelector('.check-icon');
+                    if (icon) icon.classList.add('hidden');
+                });
+
+                card.classList.remove('border-slate-700', 'bg-slate-900/40');
+                card.classList.add('border-indigo-500', 'bg-indigo-950/30');
+                const activeIcon = card.querySelector('.check-icon');
+                if (activeIcon) activeIcon.classList.remove('hidden');
+
+                const radio = card.querySelector('input[type="radio"]');
+                if (radio) radio.checked = true;
+            });
+        });
+
+        // Form Submit
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const text = targetText.value.trim();
+            if (!text) {
+                showError("กรุณากรอกข้อความที่ต้องการให้สังเคราะห์เสียง");
+                return;
+            }
+
+            hideError();
+            resultBox.classList.add('hidden');
+            loadingBox.classList.remove('hidden');
+            submitBtn.disabled = true;
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/api/synthesize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "เกิดข้อผิดพลาดในการสังเคราะห์เสียง");
+                }
+
+                // Show Result
+                document.getElementById('resVoiceName').innerText = data.voice_name;
+                document.getElementById('resProcessTime').innerText = data.processing_time;
+
+                if (data.audio_url) {
+                    const audioPlayer = document.getElementById('outputAudioPlayer');
+                    audioPlayer.src = data.audio_url;
+                    audioPlayer.play().catch(() => {});
+
+                    const dlLink = document.getElementById('downloadLink');
+                    dlLink.href = data.audio_url;
+                    dlLink.download = data.filename || 'speech.mp3';
+                }
+
+                resultBox.classList.remove('hidden');
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loadingBox.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function showError(msg) {
+            errorMessage.innerText = msg;
+            errorBox.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorBox.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
